@@ -1,8 +1,12 @@
 import os
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json
-from pyspark.sql.types import (StructType, StructField, StringType, FloatType,
-                               ArrayType, IntegerType, MapType)
+from pyspark.sql.functions import (
+    col, from_json, coalesce, lit, to_timestamp, concat_ws
+)
+from pyspark.sql.types import (
+    StructType, StructField, StringType, FloatType,
+    ArrayType, IntegerType
+)
 
 def main():
     spark = SparkSession.builder \
@@ -19,33 +23,10 @@ def main():
         .option("startingOffsets", "latest") \
         .load()
 
-    # 2) Convertir value de Kafka en string
+    # 2) value de Kafka a string
     df_str = df_raw.selectExpr("CAST(value AS STRING) as json_str")
 
-    # 3) Definir el esquema JSON acorde al prompt
-    #    {
-    #       "supermarket": "Name",
-    #       "date": "YYYY-MM-DD",
-    #       "time": "HH:MM:SS",
-    #       "location": "Somewhere",
-    #       "items": [
-    #         {
-    #           "name": "Product",
-    #           "quantity": 1,
-    #           "unit_price": 2.99,
-    #           "total_price": 2.99,
-    #           "discount": 0.50,
-    #           "original_price": 3.49
-    #         }
-    #       ],
-    #       "subtotal": 15.99,
-    #       "taxes": [
-    #         {"name": "VAT", "amount": 1.60}
-    #       ],
-    #       "total": 17.59,
-    #       "payment_method": "Card",
-    #       "currency": "EUR"
-    #    }
+    # 3) Esquema JSON
     item_schema = StructType([
         StructField("name", StringType(), True),
         StructField("quantity", IntegerType(), True),
@@ -73,13 +54,26 @@ def main():
         StructField("currency", StringType(), True)
     ])
 
-    df_parsed = df_str.select(from_json(col("json_str"), receipt_schema).alias("data")) \
-                      .select("data.*")
+    df_parsed = df_str.select(
+        from_json(col("json_str"), receipt_schema).alias("data")
+    ).select("data.*")
 
-    # 4) (Opcional) Transformaciones o limpiezas
-    df_final = df_parsed
+    # 4) Ejemplo de transformaciones/limpiezas
+    df_final = (df_parsed
+        # Rellenar discount nulo con 0 en la lista items
+        # (nota: items es un array, necesitarías transformaciones más avanzadas si quisieras
+        #  modificar cada elemento del array. Como ejemplo simple, hacemos un coalesce global:
+        .withColumn("subtotal", coalesce(col("subtotal"), lit(0.0)))
+        .withColumn("total", coalesce(col("total"), lit(0.0)))
+        # Combinar date + time en un timestamp
+        .withColumn(
+            "timestamp_purchase",
+            to_timestamp(concat_ws(" ", col("date"), col("time")), "yyyy-MM-dd HH:mm:ss")
+        )
+        .drop("date", "time")  # si ya no necesitas date y time por separado
+    )
 
-    # 5) Escritura en formato Parquet (data/plata). Se ejecuta cada 30s
+    # 5) Escritura en Parquet (cada 30s)
     query = df_final.writeStream \
         .format("parquet") \
         .option("path", "/app/data/plata") \
