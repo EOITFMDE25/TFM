@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  # Kafka y Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.2.1
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.2.1
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # Spark
+  spark:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.spark
+    container_name: spark_container
+    depends_on:
+      - kafka
+    volumes:
+      - ./data:/app/data
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=tickets_ocr
+    ports:
+      - "4040:4040"
+
+  # OCR: sube las imágenes a Gemini y publica en Kafka
+  ocr:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ocr
+    container_name: ocr_container
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=tickets_ocr
+      - GEMINI_API_KEY=TU_API_KEY_GEMINI
+    volumes:
+      - ./data:/app/data
+    # La imagen resultante ejecutará "CMD [ 'python', '/app/src/ocr/ocr_pipeline.py' ]"
+    # Al arrancar, procesará las imágenes en /app/data/raw_heic y mandará a Kafka.
+
+  # Streamlit (opcional, si deseas dashboard)
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.streamlit
+    container_name: streamlit_container
+    depends_on:
+      - spark
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8501:8501"
+
+volumes:
+  # Si requieres algún volumen persistente (no necesariamente)

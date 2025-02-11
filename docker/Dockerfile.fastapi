@@ -1,0 +1,14 @@
+# docker/Dockerfile.fastapi
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY docker/requirements_fastapi.txt /tmp/requirements_fastapi.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /tmp/requirements_fastapi.txt
+
+COPY src/services/fastapi_app /app/fastapi_app
+
+EXPOSE 8000
+
+CMD ["uvicorn", "fastapi_app.main:app", "--host", "0.0.0.0", "--port", "8000"]

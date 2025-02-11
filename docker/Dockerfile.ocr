@@ -1,0 +1,15 @@
+# docker/Dockerfile.ocr
+FROM python:3.10-slim
+
+RUN apt-get update && apt-get install -y libheif-dev gcc
+
+WORKDIR /app
+
+COPY docker/requirements_ocr.txt /tmp/requirements_ocr.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /tmp/requirements_ocr.txt
+
+COPY src /app/src
+
+# Al iniciar el contenedor, se lanzará el script ocr_pipeline.py
+CMD ["python", "/app/src/ocr/ocr_pipeline.py"]

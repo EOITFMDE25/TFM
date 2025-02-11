@@ -1,0 +1,18 @@
+# docker/Dockerfile.spark
+FROM bitnami/spark:3.3.1
+
+USER root
+
+RUN apt-get update && apt-get install -y python3 python3-pip
+
+COPY docker/requirements_spark.txt /tmp/requirements_spark.txt
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir -r /tmp/requirements_spark.txt
+
+COPY src /app/src
+
+WORKDIR /app
+
+EXPOSE 4040
+
+CMD ["bash"]

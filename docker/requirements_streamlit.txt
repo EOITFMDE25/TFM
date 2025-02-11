@@ -1,0 +1,5 @@
+streamlit==1.21.0
+pandas==1.5.3
+confluent-kafka==1.9.2
+requests==2.28.1
+# etc. (lo que uses en el Dashboard)
