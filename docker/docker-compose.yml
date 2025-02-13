@@ -9,6 +9,9 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
     ports:
       - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
 
   kafka:
     image: confluentinc/cp-kafka:7.2.1
@@ -20,8 +23,12 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+      # Opcionalmente, directorio de logs
+      - kafka_log:/var/log/kafka
 
   # Spark
   spark:
@@ -33,6 +40,8 @@ services:
       - kafka
     volumes:
       - ./data:/app/data
+      # (Opcional) si quieres un volumen de checkpoints Spark distinto:
+      # - spark_checkpoints:/app/data/plata/_checkpoints
     environment:
       - KAFKA_BROKER=kafka:9092
       - KAFKA_TOPIC=tickets_ocr
@@ -70,4 +79,8 @@ services:
       - "8501:8501"
 
 volumes:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
+  kafka_log:
   # Si requieres algún volumen persistente (no necesariamente)
