@@ -59,7 +59,7 @@ services:
     environment:
       - KAFKA_BROKER=kafka:9092
       - KAFKA_TOPIC=tickets_ocr
-      - GEMINI_API_KEY=TU_API_KEY_GEMINI
+      - GEMINI_API_KEY=AIzaSyDiebKwhPwPPDYzelUc7jG-4ZHbyhZdJnM
     volumes:
       - ./data:/app/data
     # La imagen resultante ejecutará "CMD [ 'python', '/app/src/ocr/ocr_pipeline.py' ]"
