@@ -1,7 +1,7 @@
 import os
 import glob
-from .call_ocr import ocr_image
-from ..kafka_producer.send_to_kafka import KafkaSender
+from src.ocr.call_ocr import ocr_image
+from src.kafka_producer.send_to_kafka import KafkaSender
 
 def main():
     # Directorio local en el contenedor donde están montadas las imágenes

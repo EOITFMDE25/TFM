@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y libheif-dev gcc
 
 WORKDIR /app
 
+ENV PYTHONPATH "${PYTHONPATH}:/app/src"
+
 COPY docker/requirements_ocr.txt /tmp/requirements_ocr.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /tmp/requirements_ocr.txt
