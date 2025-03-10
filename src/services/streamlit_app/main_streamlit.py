@@ -4,29 +4,21 @@ import pandas as pd
 import glob
 import os
 
+st.title("Dashboard de Tickets de Supermercado")
 
-def main():
-    st.title("Dashboard de Tickets de Supermercado")
-    parquet_path = os.getenv("PLATA_PATH", "/app/data/plata")  # Ajusta si usas Oro
+# Ruta donde Spark escribe los archivos Parquet
+parquet_path = "/app/data/processed/*.parquet"
 
-    parquet_files = glob.glob(f"{parquet_path}/*.parquet")
-    if not parquet_files:
-        st.warning("Aún no hay datos procesados en Parquet.")
-        return
-
-    # Cargamos la data en un DF
-    df = pd.read_parquet(parquet_files[-1])  # Lee el más reciente o concatena todos
-
-    st.subheader("Vista de los últimos registros OCR")
-    st.dataframe(df.head(20))
-
-    if "total" in df.columns:
-        total_gasto = df["total"].sum()
-        st.metric("Gasto total estimado (suma de total)", f"{total_gasto:.2f} EUR")
-
-    # Aquí puedes meter gráficos, groupby por 'supermarket', etc.
-    # df.groupby('supermarket').agg(...) => st.bar_chart(...)
-
-
-if __name__ == "__main__":
-    main()
+# Lee todos los archivos Parquet
+parquet_files = glob.glob(parquet_path)
+if not parquet_files:
+    st.write("Aún no hay datos procesados en Parquet.")
+else:
+    # Combina todos los archivos Parquet en un solo DataFrame
+    df_list = [pd.read_parquet(file) for file in parquet_files]
+    if df_list:
+        df = pd.concat(df_list, ignore_index=True)
+        st.write("Datos procesados:")
+        st.dataframe(df)
+    else:
+        st.write("No se pudieron leer los datos de los archivos Parquet.")

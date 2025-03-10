@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # Kafka y Zookeeper
   zookeeper:
@@ -12,6 +10,8 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - tfm_network
 
   kafka:
     image: confluentinc/cp-kafka:7.2.1
@@ -29,6 +29,8 @@ services:
       - kafka_data:/var/lib/kafka/data
       # Opcionalmente, directorio de logs
       - kafka_log:/var/log/kafka
+    networks:
+      - tfm_network
 
   # Spark
   spark:
@@ -47,6 +49,8 @@ services:
       - KAFKA_TOPIC=tickets_ocr
     ports:
       - "4040:4040"
+    networks:
+      - tfm_network
 
   # OCR: sube las imágenes a Gemini y publica en Kafka
   ocr:
@@ -64,6 +68,8 @@ services:
       - ./data:/app/data
     # La imagen resultante ejecutará "CMD [ 'python', '/app/src/ocr/ocr_pipeline.py' ]"
     # Al arrancar, procesará las imágenes en /app/data/raw_heic y mandará a Kafka.
+    networks:
+      - tfm_network
 
   # Streamlit (opcional, si deseas dashboard)
   streamlit:
@@ -77,6 +83,8 @@ services:
       - ./data:/app/data
     ports:
       - "8501:8501"
+    networks:
+      - tfm_network
 
 volumes:
   zookeeper_data:
@@ -84,3 +92,7 @@ volumes:
   kafka_data:
   kafka_log:
   # Si requieres algún volumen persistente (no necesariamente)
+
+networks:
+  tfm_network:
+    driver: bridge

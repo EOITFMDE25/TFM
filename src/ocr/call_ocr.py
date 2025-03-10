@@ -1,21 +1,16 @@
+# src/ocr/call_ocr.py
 import pathlib
+import google.generativeai as genai
 import os
 import json
 import tempfile
 from PIL import Image
+import pillow_heif  # Añade esta línea para importar pillow_heif
 
-try:
-    import pillow_heif
-    pillow_heif.register_heif_opener()
-except ImportError:
-    print("WARNING: pillow-heif no está instalado. Para HEIC, instálalo con 'pip install pillow-heif'.")
-
-import google.generativeai as genai
-
-# Leer la API Key desde variable de entorno (recomendado)
+# Configura la API key desde las variables de entorno
 api_key = os.getenv('GEMINI_API_KEY')
 if not api_key:
-    raise ValueError("Falta la variable de entorno GEMINI_API_KEY.")
+    raise ValueError("La variable de entorno GEMINI_API_KEY no está configurada")
 genai.configure(api_key=api_key)
 
 # Selecciona el modelo
@@ -23,40 +18,53 @@ model = genai.GenerativeModel('gemini-2.0-flash')
 
 def process_image_file(image_path):
     """
-    Convierte la imagen a JPG si no lo está (por ej. HEIC -> JPG).
-    Retorna la ruta del archivo (temporal) convertido.
+    Procesa una imagen para asegurarse de que esté en formato JPG o PNG.
+    Si la imagen no lo está (por ejemplo, HEIC), la abre, la convierte a RGB (si es necesario)
+    y la guarda en un archivo temporal en formato JPEG.
+    
+    Args:
+        image_path: Ruta a la imagen (str o pathlib.Path).
+    
+    Returns:
+        La ruta al archivo procesado (formato JPG).
     """
-    p = pathlib.Path(image_path)
-    if p.suffix.lower() in [".jpg", ".jpeg", ".png"]:
-        return str(p)
-
-    try:
-        img = Image.open(str(p))
+    print(f"[OCR] Procesando archivo: {image_path}")
+    image_path = pathlib.Path(image_path)
+    if image_path.suffix.lower() in [".jpg", ".jpeg", ".png"]:
+        return str(image_path)
+    else:
+        try:
+            pillow_heif.register_heif_opener()  # Registra soporte para HEIC
+            img = Image.open(image_path)
+            print(f"[OCR] Imagen abierta: formato={img.format}, tamaño={img.size}, modo={img.mode}")
+        except Exception as e:
+            print(f"[OCR] Error al abrir la imagen {image_path}: {e}")
+            raise
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-    except Exception as e:
-        print(f"Error abriendo {image_path}: {e}")
-        return None
-
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-    tmp_name = tmp.name
-    tmp.close()
-    img.save(tmp_name, "JPEG")
-    return tmp_name
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+        temp_file_name = temp_file.name
+        temp_file.close()
+        img.save(temp_file_name, format="JPEG")
+        print(f"[OCR] Imagen convertida y guardada en: {temp_file_name}")
+        return temp_file_name
 
 def ocr_image(image_path):
     """
-    Sube la imagen a Gemini y obtiene un JSON estructurado con la info del ticket.
-    Retorna dict o None en caso de error.
+    Realiza OCR en una imagen usando Gemini mediante la API de archivos.
+    
+    Args:
+        image_path: Ruta a la imagen (str o pathlib.Path).
+    
+    Returns:
+        Un diccionario JSON con la información extraída, o None si ocurre algún error.
     """
-    processed_path = process_image_file(image_path)
-    if not processed_path:
-        return None
-
     try:
+        print(f"[OCR] Iniciando OCR para: {image_path}")
+        processed_path = process_image_file(image_path)
+        
         file_ref = genai.upload_file(processed_path)
-
-        # Prompt definido en el prompt original (estructura de JSON).
+        
         prompt = """
         Extract the important information from this image of a supermarket receipt.
         Return the data in JSON format, structured as follows:
@@ -84,25 +92,24 @@ def ocr_image(image_path):
           "payment_method": "Card",
           "currency": "EUR"
         }
-
-        If any information is not present, use null as the value.
-        Don't include additional text, only JSON.
+        
+        If any information is not present in the image, use "null" as the value.
         """
-
+        
         response = model.generate_content([prompt, file_ref], stream=False)
         response.resolve()
-        text = response.text
-
-        # Extraer el bloque JSON
-        start = text.find('{')
-        end = text.rfind('}') + 1
-        if start == -1 or end == 0:
-            print("No se encontró JSON en la respuesta de Gemini.")
+        
+        print(f"[OCR] Respuesta cruda de Gemini: {response.text}")
+        json_start = response.text.find('{')
+        json_end = response.text.rfind('}') + 1
+        if json_start == -1 or json_end == 0:
+            print("[OCR] No se encontró JSON en la respuesta de Gemini")
             return None
-        json_text = text[start:end]
+        json_text = response.text[json_start:json_end]
         data = json.loads(json_text)
+        print(f"[OCR] JSON procesado: {json.dumps(data, indent=2)}")
         return data
 
     except Exception as e:
-        print(f"Ocurrió un error con la API de Gemini: {e}")
+        print(f"[OCR] Error durante el procesamiento de la imagen: {e}")
         return None

@@ -1,6 +1,6 @@
-streamlit==1.21.0
-pandas==1.5.3
-confluent-kafka==1.9.2
-requests==2.28.1
-python-dotenv==0.21.1
-pymongo==4.3.3
+streamlit==1.36.0
+pandas==2.2.2
+confluent-kafka==2.5.0
+requests==2.32.3
+python-dotenv==1.0.1
+pymongo==4.8.0
