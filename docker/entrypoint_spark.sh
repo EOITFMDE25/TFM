@@ -16,5 +16,8 @@ wait_for_kafka() {
 # Esperar a Kafka
 wait_for_kafka
 
-# Ejecutar el job de Spark
-exec spark-submit --master local[*] /app/src/spark_jobs/process_tickets.py
+# Ejecutar el job de Spark usando --packages
+exec spark-submit \
+    --master local[*] \
+    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.1 \
+    /app/src/spark_jobs/process_tickets.py

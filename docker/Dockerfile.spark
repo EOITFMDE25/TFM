@@ -6,13 +6,6 @@ USER root
 # Instala python3, python3-pip, netcat-traditional y curl
 RUN apt-get update && apt-get install -y python3 python3-pip netcat-traditional curl
 
-# Descarga e instala el conector de Kafka para Spark
-RUN mkdir -p /opt/spark/jars && \
-    curl -o /opt/spark/jars/spark-sql-kafka-0-10_2.12-3.3.1.jar \
-    https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.3.1/spark-sql-kafka-0-10_2.12-3.3.1.jar && \
-    curl -o /opt/spark/jars/kafka-clients-3.2.0.jar \
-    https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.2.0/kafka-clients-3.2.0.jar
-
 COPY docker/requirements_spark.txt /tmp/requirements_spark.txt
 RUN pip3 install --no-cache-dir --upgrade pip && \
     pip3 install --no-cache-dir -r /tmp/requirements_spark.txt
