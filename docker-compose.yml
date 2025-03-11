@@ -42,7 +42,7 @@ services:
       - kafka
     volumes:
       - ./data:/app/data
-      # (Opcional) si quieres un volumen de checkpoints Spark distinto:
+      # (Opcional) un volumen de checkpoints Spark distinto:
       # - spark_checkpoints:/app/data/plata/_checkpoints
     environment:
       - KAFKA_BROKER=kafka:9092
@@ -91,7 +91,7 @@ volumes:
   zookeeper_log:
   kafka_data:
   kafka_log:
-  # Si requieres algún volumen persistente (no necesariamente)
+
 
 networks:
   tfm_network:

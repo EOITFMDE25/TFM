@@ -62,7 +62,7 @@ La arquitectura se basa en varios contenedores Docker orquestados con docker-com
 ## 5. Pasos de Ejecución
 - Clona este repositorio:
 ```
-git clone https://github.com/tuorg/supermarket_tickets.githttps://github.com/EOITFMDE25/TFM.git
+git clone https://github.com/EOITFMDE25/TFM.git
 ```
 - Construye las imágenes Docker:
 
