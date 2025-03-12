@@ -6,6 +6,8 @@
 .idea/**/dictionaries
 .idea/**/shelf
 
+./data/checkpoint
+
 # AWS User-specific
 .idea/**/aws.xml
 

@@ -62,7 +62,7 @@ def main():
     query = df_processed.writeStream \
         .outputMode("append") \
         .format("parquet") \
-        .option("path", "/app/data/processed") \
+        .option("path", "/app/data/plata") \
         .option("checkpointLocation", "/app/data/checkpoint") \
         .trigger(processingTime="5 seconds") \
         .start()
