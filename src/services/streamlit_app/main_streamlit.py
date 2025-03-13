@@ -6,7 +6,7 @@ import json
 st.title("Dashboard de Tickets de Supermercado")
 
 # Ruta donde están los archivos Parquet procesados
-parquet_path = "/app/data/processed/*.parquet"
+parquet_path = "/app/data/plata/*.parquet"
 
 # Leer los archivos Parquet
 parquet_files = glob.glob(parquet_path)
