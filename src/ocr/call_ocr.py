@@ -1,82 +1,78 @@
-# src/ocr/call_ocr.py
+# /src/ocr/call_ocr.py
 import pathlib
 import google.generativeai as genai
 import os
 import json
 import tempfile
 from PIL import Image
-import pillow_heif  # Añade esta línea para importar pillow_heif
+import pillow_heif
 
-# Configura la API key desde las variables de entorno
-api_key = os.getenv('GEMINI_API_KEY')
-if not api_key:
-    raise ValueError("La variable de entorno GEMINI_API_KEY no está configurada")
-genai.configure(api_key=api_key)
-
-# Selecciona el modelo
+# Modelos de Gemini
 model = genai.GenerativeModel('gemini-2.0-flash')
+model_cat = genai.GenerativeModel('gemini-2.0-flash')
 
-def process_image_file(image_path):
+def process_image_file(image_data):
     """
-    Procesa una imagen para asegurarse de que esté en formato JPG o PNG.
-    Si la imagen no lo está (por ejemplo, HEIC), la abre, la convierte a RGB (si es necesario)
-    y la guarda en un archivo temporal en formato JPEG.
-    
+    Procesa datos de imagen (bytes) para asegurar formato JPG.
+    Si es HEIC, lo convierte a JPG. Guarda en archivo temporal.
+
     Args:
-        image_path: Ruta a la imagen (str o pathlib.Path).
-    
+        image_data: Datos binarios de la imagen (BytesIO object).
+
     Returns:
-        La ruta al archivo procesado (formato JPG).
+        Ruta al archivo procesado (formato JPG), o None si hay error.
     """
-    print(f"[OCR] Procesando archivo: {image_path}")
-    image_path = pathlib.Path(image_path)
-    if image_path.suffix.lower() in [".jpg", ".jpeg", ".png"]:
-        return str(image_path)
-    else:
-        try:
-            pillow_heif.register_heif_opener()  # Registra soporte para HEIC
-            img = Image.open(image_path)
-            print(f"[OCR] Imagen abierta: formato={img.format}, tamaño={img.size}, modo={img.mode}")
-        except Exception as e:
-            print(f"[OCR] Error al abrir la imagen {image_path}: {e}")
-            raise
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-        temp_file_name = temp_file.name
-        temp_file.close()
-        img.save(temp_file_name, format="JPEG")
-        print(f"[OCR] Imagen convertida y guardada en: {temp_file_name}")
-        return temp_file_name
+    pillow_heif.register_heif_opener()  # Registrar HEIF al inicio
+    image_data.seek(0)
+    try:
+        img = Image.open(image_data)
+        print(f"[OCR] Imagen abierta: formato={img.format}, tamaño={img.size}, modo={img.mode}")
+
+        if img.format not in ("JPEG", "PNG"):
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
+                temp_file_name = temp_file.name
+                img.save(temp_file_name, "JPEG")
+                print(f"[OCR] Imagen convertida a JPEG: {temp_file_name}")
+                return temp_file_name
+        else:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{img.format.lower()}") as temp_file:
+                temp_file_name = temp_file.name
+                img.save(temp_file_name)
+                print(f"[OCR] Imagen guardada en temporal: {temp_file_name}")
+                return temp_file_name
+
+    except Exception as e:
+        print(f"[OCR] Error al procesar la imagen: {e}")
+        return None
 
 def ocr_image(image_path):
     """
-    Realiza OCR en una imagen usando Gemini mediante la API de archivos.
-    
+    Realiza OCR en una imagen usando Gemini.
+
     Args:
-        image_path: Ruta a la imagen (str o pathlib.Path).
-    
+        image_path: Ruta a la imagen (str).
+
     Returns:
-        Un diccionario JSON con la información extraída, o None si ocurre algún error.
+        Diccionario JSON con la información, o None si hay error.
     """
     try:
         print(f"[OCR] Iniciando OCR para: {image_path}")
-        processed_path = process_image_file(image_path)
-        
-        file_ref = genai.upload_file(processed_path)
-        
+        file_ref = genai.upload_file(image_path)
+
         prompt = """
-        Extract the important information from this image of a supermarket receipt.
-        Return the data in JSON format, structured as follows:
+        Extrae la información importante de esta imagen de un ticket de supermercado.
+        Devuelve los datos en formato JSON, estructurados de la siguiente manera:
 
         {
-          "supermarket": "Name of the supermarket",
-          "date": "YYYY-MM-DD",
+          "supermarket": "Nombre del supermercado",
+          "date": "AAAA-MM-DD",
           "time": "HH:MM:SS",
-          "location": "Address or city of the supermarket",
+          "location": "Dirección o ciudad del supermercado",
           "items": [
             {
-              "name": "Product name",
+              "name": "Nombre del producto",
               "quantity": 1,
               "unit_price": 2.99,
               "total_price": 2.99,
@@ -86,30 +82,83 @@ def ocr_image(image_path):
           ],
           "subtotal": 15.99,
           "taxes": [
-              {"name": "VAT", "amount": 1.60}
+              {"name": "IVA", "amount": 1.60}
           ],
           "total": 17.59,
-          "payment_method": "Card",
+          "payment_method": "Tarjeta",
           "currency": "EUR"
         }
-        
-        If any information is not present in the image, use "null" as the value.
+
+        Si alguna información no está presente, usa "null". Devuelve SOLO el JSON.
         """
-        
         response = model.generate_content([prompt, file_ref], stream=False)
         response.resolve()
-        
+
         print(f"[OCR] Respuesta cruda de Gemini: {response.text}")
-        json_start = response.text.find('{')
-        json_end = response.text.rfind('}') + 1
-        if json_start == -1 or json_end == 0:
-            print("[OCR] No se encontró JSON en la respuesta de Gemini")
-            return None
-        json_text = response.text[json_start:json_end]
-        data = json.loads(json_text)
+        json_text = response.text
+        try:
+            data = json.loads(json_text)
+        except json.JSONDecodeError:
+            json_start = json_text.find('{')
+            json_end = json_text.rfind('}') + 1
+            if json_start != -1 and json_end != 0:
+                json_text = json_text[json_start:json_end]
+                data = json.loads(json_text)
+            else:
+                print("[OCR] No se encontró JSON válido")
+                return None
+
         print(f"[OCR] JSON procesado: {json.dumps(data, indent=2)}")
         return data
 
     except Exception as e:
-        print(f"[OCR] Error durante el procesamiento de la imagen: {e}")
+        print(f"[OCR] Error durante el OCR: {e}")
         return None
+
+def categorize_product(product_name):
+    """
+    Infiera la categoría de un producto usando Gemini.
+
+    Args:
+        product_name: Nombre del producto.
+
+    Returns:
+        Categoría inferida (str).
+    """
+    prompt = f"""
+    Categoriza el siguiente producto de supermercado: "{product_name}".
+    Las categorías posibles son (y solo estas):
+    - "Comida"
+    - "Bebida"
+    - "Lácteos"
+    - "Carne"
+    - "Pescado"
+    - "Fruta"
+    - "Verdura"
+    - "Panadería"
+    - "Congelados"
+    - "Limpieza"
+    - "Higiene"
+    - "Mascotas"
+    - "Bebé"
+    - "Otros"
+
+    Responde únicamente con el nombre de la categoría, sin explicaciones adicionales.
+    """
+    try:
+        response = model_cat.generate_content(prompt, stream=False)
+        response.resolve()
+        category = response.text.strip()
+        # Validación de la categoría
+        valid_categories = [
+            "Comida", "Bebida", "Lácteos", "Carne", "Pescado", "Fruta",
+            "Verdura", "Panadería", "Congelados", "Limpieza", "Higiene",
+            "Mascotas", "Bebé", "Otros"
+        ]
+        if category not in valid_categories:
+            print(f"[Categorización] Categoría inválida: {category}. Se usará 'Otros'.")
+            category = "Otros"
+        return category
+    except Exception as e:
+        print(f"[Categorización] Error al categorizar '{product_name}': {e}")
+        return "Otros"  # Categoría por defecto en caso de error

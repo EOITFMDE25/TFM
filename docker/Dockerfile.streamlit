@@ -1,14 +1,17 @@
-# docker/Dockerfile.streamlit
+# /docker/Dockerfile.streamlit
 FROM python:3.10-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends libheif-dev gcc libheif1 heif-gdk-pixbuf
 
 WORKDIR /app
 
-COPY docker/requirements_streamlit.txt /tmp/requirements_streamlit.txt
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r /tmp/requirements_streamlit.txt
+ENV PYTHONPATH "${PYTHONPATH}:/app/src"
 
-COPY src/services/streamlit_app /app/streamlit_app
+COPY docker/requirements_streamlit.txt /tmp/requirements_streamlit.txt
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r /tmp/requirements_streamlit.txt
+
+COPY src /app/src
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "streamlit_app/main_streamlit.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "src/services/streamlit_app/main_streamlit.py", "--server.port=8501", "--server.address=0.0.0.0"]

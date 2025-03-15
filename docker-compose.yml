@@ -66,12 +66,10 @@ services:
       - GEMINI_API_KEY=AIzaSyDiebKwhPwPPDYzelUc7jG-4ZHbyhZdJnM
     volumes:
       - ./data:/app/data
-    # La imagen resultante ejecutará "CMD [ 'python', '/app/src/ocr/ocr_pipeline.py' ]"
-    # Al arrancar, procesará las imágenes en /app/data/raw_heic y mandará a Kafka.
     networks:
       - tfm_network
 
-  # Streamlit (opcional, si deseas dashboard)
+  # Streamlit
   streamlit:
     build:
       context: .
@@ -81,8 +79,13 @@ services:
       - spark
     volumes:
       - ./data:/app/data
+      - ./src:/app/src
     ports:
       - "8501:8501"
+    environment:
+        - GEMINI_API_KEY=AIzaSyDiebKwhPwPPDYzelUc7jG-4ZHbyhZdJnM
+        - KAFKA_BROKER=kafka:9092
+        - KAFKA_TOPIC=tickets_ocr
     networks:
       - tfm_network
 

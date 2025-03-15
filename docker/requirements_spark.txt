@@ -2,4 +2,4 @@ pyspark==3.3.1
 confluent-kafka==1.9.2
 requests==2.28.1
 python-dotenv==0.21.1
-pymongo==4.3.3     # solo si tu spark job lee/escribe a Mongo
+pymongo==4.3.3
