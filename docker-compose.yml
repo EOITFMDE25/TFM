@@ -89,6 +89,21 @@ services:
     networks:
       - tfm_network
 
+  fastapi:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.fastapi
+    container_name: fastapi_container
+    depends_on:
+      - spark
+    volumes:
+      - ./data:/app/data
+      - ./src:/app/src
+    ports:
+      - "8000:8000"
+    networks:
+      - tfm_network
+
 volumes:
   zookeeper_data:
   zookeeper_log:
