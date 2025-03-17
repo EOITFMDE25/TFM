@@ -1,6 +1,6 @@
 # /src/spark_jobs/process_tickets.py
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col, expr, to_json
+from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql.functions import from_json, col, expr, to_json, count, sum, explode
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, ArrayType
 
 def main():
@@ -70,8 +70,40 @@ def main():
         .option("checkpointLocation", "/app/data/checkpoint") \
         .trigger(processingTime="5 seconds") \
         .start()
+    # Función para batchs
+    def procesar_batch(batch_df: DataFrame, batch_id: int):
+        print(f"Procesando micro-batch {batch_id}")
+        df_aggregated_batch = batch_df.select(
+            "data.supermarket",
+            "data.date",
+            "data.time",
+            "data.location",
+            col("data.items").alias('items'),
+            expr("cast(data.subtotal as double)").alias("subtotal"),
+            col("data.taxes"),
+            expr("cast(data.total as double)").alias("total"),
+            "data.payment_method",
+            "data.currency"
+        )
+        exploded_df = df_aggregated_batch.withColumn("item", explode(col("items")).alias('item'))
+        # agragación por supermercado y categoria
+        aggregated_df = exploded_df.groupBy("supermarket", "item.category").agg(
+            sum(expr("cast(item.total_price as double)")).alias("total_spent"),
+            count(expr("item.name")).alias("num_items")
+        )
 
+        aggregated_df.write \
+            .mode("overwrite") \
+            .parquet("/app/data/oro")
+ 
+    # writeStream con foreachBatch por incompatibilidad de writeStream con outputs modes con agregados
+    query_oro = df_json.writeStream.foreachBatch(procesar_batch) \
+        .option("checkpointLocation", "/app/data/checkpoint_oro") \
+        .trigger(processingTime="30 seconds") \
+        .start()
+    
     query.awaitTermination()
+    query_oro.awaitTermination()
 
 if __name__ == "__main__":
     main()
