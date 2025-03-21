@@ -70,6 +70,7 @@ def main():
         .option("checkpointLocation", "/app/data/checkpoint") \
         .trigger(processingTime="5 seconds") \
         .start()
+    
     # Función para batchs
     def procesar_batch(batch_df: DataFrame, batch_id: int):
         print(f"Procesando micro-batch {batch_id}")
