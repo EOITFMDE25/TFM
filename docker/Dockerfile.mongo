@@ -1,0 +1,11 @@
+# docker/Dockerfile.mongo
+FROM mongo:6.0
+
+# Opcional: copiar archivos de configuración, scripts de init, etc.
+# COPY mongod.conf /etc/mongod.conf
+# COPY init.js /docker-entrypoint-initdb.d/
+
+# Puertos expuestos (opcional, Docker Compose suele encargarse)
+EXPOSE 27017
+
+# El CMD por defecto de la imagen oficial de Mongo ya inicia el servidor.

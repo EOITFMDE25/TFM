@@ -1,0 +1,1 @@
+# Para empaquetar el proyecto como librería interna

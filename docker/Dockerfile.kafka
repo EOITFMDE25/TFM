@@ -1,0 +1,7 @@
+# docker/Dockerfile.kafka
+FROM confluentinc/cp-kafka:7.2.1
+
+# Copiar configs si quieres personalizar
+# COPY server.properties /etc/kafka/server.properties
+
+EXPOSE 9092
